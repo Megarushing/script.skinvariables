@@ -11,6 +11,7 @@ from resources.lib.multisearch.sourcelist import NoSourceList, SourceList
 from resources.lib.multisearch.sourcepicker import SingleSourcePicker, SourcesPicker
 from resources.lib.multisearch.sources import SearchSources
 from resources.lib.multisearch.template import MultiSearchWindowFile
+from resources.lib.multisearch.trakt_discover import TraktDiscoverMultiSearchWindow, TraktDiscoverSearchSources
 from resources.lib.multisearch.widgets import (
     MediaTypeResultsLists,
     NoAllMediaTypeResultsLists,
@@ -62,10 +63,12 @@ class MultiSearchController(ScriptWindowController):
     finishes.
 
     The skin passes the progress_dialog param to show a background progress dialog while source lookups run or wait.
+
+    The skin passes the trakt_discover param to add the TMDbHelper Trakt Discover source after the discover sources.
+    It lists the results of the filters saved by the Trakt Discover editor, which button 110 opens.
     """
 
     window_file_class = MultiSearchWindowFile
-    window_class = MultiSearchWindow
 
     def __init__(
         self,
@@ -83,6 +86,7 @@ class MultiSearchController(ScriptWindowController):
         tmdbhelper_container=False,
         no_all_list=False,
         progress_dialog=False,
+        trakt_discover=False,
     ):
         self.menu = menu
         self.skin = skin
@@ -98,6 +102,15 @@ class MultiSearchController(ScriptWindowController):
         self.tmdbhelper_container = tmdbhelper_container
         self.no_all_list = no_all_list
         self.progress_dialog = progress_dialog
+        self.trakt_discover = trakt_discover
+
+    @cached_property
+    def has_trakt_discover(self):
+        return bool(self.trakt_discover) and not self.no_discover
+
+    @cached_property
+    def window_class(self):
+        return TraktDiscoverMultiSearchWindow if self.has_trakt_discover else MultiSearchWindow
 
     @cached_property
     def sources(self):
@@ -106,6 +119,8 @@ class MultiSearchController(ScriptWindowController):
     def get_sources(self):
         if self.no_discover:
             return SearchSources(self.menu, self.skin, self.paths_file)
+        if self.has_trakt_discover:
+            return TraktDiscoverSearchSources(self.menu, self.skin, self.paths_file, self.discover_style)
         return DiscoverSearchSources(self.menu, self.skin, self.paths_file, self.discover_style)
 
     @cached_property
@@ -235,6 +250,7 @@ def run_multisearch(
     tmdbhelper_container=False,
     no_all_list=False,
     progress_dialog=False,
+    trakt_discover=False,
     **kwargs,
 ):
     MultiSearchController(
@@ -252,4 +268,5 @@ def run_multisearch(
         tmdbhelper_container,
         no_all_list,
         progress_dialog,
+        trakt_discover,
     ).run()
