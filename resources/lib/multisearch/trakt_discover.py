@@ -6,7 +6,7 @@ from jurialmunkey.ftools import cached_property
 from resources.lib.multisearch.discover import DiscoverSearchSources
 from resources.lib.multisearch.results import SourceResults
 from resources.lib.multisearch.sources import SearchSource, get_path_origin
-from resources.lib.multisearch.window import MultiSearchControl, MultiSearchWindow
+from resources.lib.multisearch.window import SOURCES_ID, MultiSearchControl, MultiSearchWindow
 
 
 TMDBHELPER_PLUGIN = 'plugin://plugin.video.themoviedb.helper/'
@@ -89,11 +89,14 @@ class TraktDiscoverSearchSources(DiscoverSearchSources):
 
 
 class TraktFiltersButton(MultiSearchControl):
-    """Optional button that opens the TMDbHelper Trakt Discover editor with the saved filters."""
+    """Optional button that searches Trakt Discover alone and opens the TMDbHelper Trakt Discover editor with the
+    saved filters. Reset enables every source again.
+    """
 
     control_id = TRAKT_FILTERS_ID
 
     def onclick(self, window):
+        window.select_trakt_discover()
         xbmc.executebuiltin(TRAKT_DISCOVER_EDITOR)
 
 
@@ -143,6 +146,25 @@ class TraktDiscoverMultiSearchWindow(MultiSearchWindow):
         super().onInit()
         if not self.trakt_path_watcher.thread.is_alive():
             self.trakt_path_watcher.start()
+
+    @cached_property
+    def trakt_discover_position(self):
+        return self.get_trakt_discover_position()
+
+    def get_trakt_discover_position(self):
+        return next(
+            position
+            for position, source in enumerate(self.search.sources.items)
+            if isinstance(source, TraktDiscoverSource)
+        )
+
+    def select_trakt_discover(self):
+        """Search only Trakt Discover, as the other sources would mix their own results into its list."""
+        self.search.sources.set_enabled_positions([self.trakt_discover_position])
+        with self.lock:
+            self.refresh_view()
+            self.controls[SOURCES_ID].set_properties(self)
+        self.research()
 
     def stop(self):
         self.trakt_path_watcher.stop()
